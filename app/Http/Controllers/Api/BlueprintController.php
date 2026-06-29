@@ -7,6 +7,7 @@ use App\Http\Requests\Blueprint\BlueprintStoreRequest;
 use App\Http\Resources\BlueprintResource;
 use App\Models\Blueprint;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreBlueprintRequest;
 
 class BlueprintController extends Controller
 {
@@ -22,8 +23,7 @@ class BlueprintController extends Controller
      */
     public function index()
     {
-        $blueprints = auth()->user()->blueprints()->latest()->get();
-        return response()->json($blueprints);
+        return BlueprintResource::collection(auth()->user()->blueprints()->latest()->get());
     }
 
     /**
@@ -38,7 +38,16 @@ class BlueprintController extends Controller
      */
     public function show(Blueprint $blueprint)
     {
-        return response()->json($blueprint);
+        return new BlueprintResource($blueprint);
+    }
+
+    public function store(StoreBlueprintRequest $request)
+    {
+        $blueprint = auth()->user()->blueprints()->create($request->validated());
+
+        return (new BlueprintResource($blueprint))
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
