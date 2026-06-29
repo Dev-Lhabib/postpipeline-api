@@ -1,0 +1,104 @@
+services:
+  app:
+    image: php:8.3-cli
+    container_name: postpipeline_app
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    ports:
+      - "8000:8000"
+    environment:
+      - PHP_IDE_CONFIG=serverName=postpipeline
+      - DB_HOST=mysql
+      - DB_DATABASE=postpipeline_api
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    command: >
+      bash -c "
+      apt-get update &&
+      apt-get install -y --no-install-recommends libzip-dev libonig-dev zip unzip git curl libpng-dev &&
+      docker-php-ext-install pdo_mysql mbstring zip gd bcmath &&
+      pecl install redis && docker-php-ext-enable redis &&
+      php artisan serve --host=0.0.0.0 --port=8000
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "php -m | grep -q pdo_mysql"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      - mysql
+    networks:
+      - postpipeline
+
+  mysql:
+    image: mysql:8.0
+    container_name: postpipeline_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: postpipeline_api
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - postpipeline_mysql_data:/var/lib/mysql
+    networks:
+      - postpipeline
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: postpipeline_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: root
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    networks:
+      - postpipeline
+
+  redis:
+    image: redis:7-alpine
+    container_name: postpipeline_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - postpipeline
+
+  queue:
+    image: php:8.3-cli
+    container_name: postpipeline_queue
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: >
+      bash -c "
+      apt-get update &&
+      apt-get install -y --no-install-recommends libzip-dev libonig-dev zip unzip git curl libpng-dev &&
+      docker-php-ext-install pdo_mysql mbstring zip gd bcmath &&
+      pecl install redis && docker-php-ext-enable redis &&
+      php artisan queue:work redis --tries=3 --sleep=3
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "php -m | grep -q pdo_mysql"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - postpipeline
+
+networks:
+  postpipeline:
+    driver: bridge
+
+volumes:
+  postpipeline_mysql_data:
