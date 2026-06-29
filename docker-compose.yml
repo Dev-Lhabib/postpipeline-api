@@ -9,10 +9,6 @@ services:
       - "8000:8000"
     environment:
       - PHP_IDE_CONFIG=serverName=postpipeline
-      - DB_HOST=mysql
-      - DB_DATABASE=postpipeline_api
-      - DB_USERNAME=root
-      - DB_PASSWORD=root
     command: >
       bash -c "
       apt-get update &&
